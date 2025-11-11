@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Whiteboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1f2937;
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .whiteboard-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-height: 100vh;
+        }
+        
+        .controls {
+            background: #374151;
+            padding: 10px 15px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            border-bottom: 2px solid #4b5563;
+            min-height: 65px;
+            overflow-x: auto;
+        }
+        
+        .color-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid #9ca3af;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        
+        .color-btn:hover {
+            transform: scale(1.1);
+            border-color: white;
+        }
+        
+        .color-btn.active {
+            border-color: white;
+            transform: scale(1.1);
+        }
+        
+        .size-btn, .mode-btn, .clear-btn, .upload-btn {
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        
+        .size-btn:hover, .mode-btn:hover, .upload-btn:hover {
+            background: #4b5563;
+            transform: scale(1.05);
+        }
+        
+        .clear-btn {
+            background: #dc2626;
+        }
+        
+        .clear-btn:hover {
+            background: #b91c1c;
+            transform: scale(1.05);
+        }
+        
+        .upload-btn {
+            background: #7c3aed;
+        }
+        
+        .upload-btn:hover {
+            background: #6d28d9;
+        }
+        
+        .mode-btn.active {
+            background: #059669;
+        }
+        
+        .size-btn.active {
+            background: #3b82f6;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            background: #f8fafc;
+            position: relative;
+            overflow: hidden;
+            min-height: 0;
+        }
+        
+        #whiteboard {
+            background: white;
+            cursor: crosshair;
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #textInput {
+            position: absolute;
+            border: 2px solid #3b82f6;
+            padding: 8px 12px;
+            font-size: 14px;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: none;
+            z-index: 100;
+            min-width: 180px;
+            outline: none;
+        }
+        
+        #imageUpload {
+            display: none;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 10px;
+            border-right: 1px solid #4b5563;
+            flex-shrink: 0;
+        }
+        
+        .control-group:last-child {
+            border-right: none;
+        }
+        
+        .control-label {
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        
+        .colors-group {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="whiteboard-container">
+        <div class="controls">
+            <!-- Mode Group -->
+            <div class="control-group">
+                <span class="control-label">Mode:</span>
+                <button class="mode-btn active" onclick="setMode('draw')">✏️ Draw</button>
+                <button class="mode-btn" onclick="setMode('text')">📝 Text</button>
+            </div>
+            
+            <!-- Colors Group -->
+            <div class="control-group">
+                <span class="control-label">Colors:</span>
+                <div class="colors-group">
+                    <button class="color-btn active" style="background: #000000;" onclick="setColor('#000000')" title="Black"></button>
+                    <button class="color-btn" style="background: #dc2626;" onclick="setColor('#dc2626')" title="Red"></button>
+                    <button class="color-btn" style="background: #2563eb;" onclick="setColor('#2563eb')" title="Blue"></button>
+                    <button class="color-btn" style="background: #16a34a;" onclick="setColor('#16a34a')" title="Green"></button>
+                    <button class="color-btn" style="background: #ca8a04;" onclick="setColor('#ca8a04')" title="Yellow"></button>
+                    <button class="color-btn" style="background: #7c3aed;" onclick="setColor('#7c3aed')" title="Purple"></button>
+                </div>
+            </div>
+            
+            <!-- Brush Size Group -->
+            <div class="control-group">
+                <span class="control-label">Size:</span>
+                <button class="size-btn active" onclick="setSize(2)">S</button>
+                <button class="size-btn" onclick="setSize(5)">M</button>
+                <button class="size-btn" onclick="setSize(10)">L</button>
+                <button class="size-btn" onclick="setSize(15)">XL</button>
+            </div>
+            
+            <!-- Upload Group -->
+            <div class="control-group">
+                <button class="upload-btn" onclick="document.getElementById('imageUpload').click()">📷 Image</button>
+                <input type="file" id="imageUpload" accept="image/*" onchange="handleImageUpload(event)">
+            </div>
+            
+            <!-- Clear Group -->
+            <div class="control-group">
+                <button class="clear-btn" onclick="clearWhiteboard()">🗑️ Clear</button>
+            </div>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="whiteboard"></canvas>
+            <input type="text" id="textInput" placeholder="Type text and press Enter...">
+        </div>
+    </div>
+
+    <script>
+        // Whiteboard variables
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let currentColor = '#000000';
+        let currentSize = 5;
+        let currentMode = 'draw';
+        let canvas, ctx, textInput;
+        let images = [];
+        let textInputPosition = { x: 0, y: 0 };
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            canvas = document.getElementById('whiteboard');
+            ctx = canvas.getContext('2d');
+            textInput = document.getElementById('textInput');
+            
+            resizeCanvas();
+            setupEventListeners();
+            
+            // Set initial white background
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        });
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const rect = container.getBoundingClientRect();
+            canvas.width = Math.max(rect.width, 100);
+            canvas.height = Math.max(rect.height, 100);
+            
+            redrawCanvas();
+        }
+
+        function redrawCanvas() {
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            images.forEach(imgData => {
+                ctx.drawImage(imgData.img, imgData.x, imgData.y, imgData.width, imgData.height);
+            });
+        }
+
+        function setupEventListeners() {
+            // Mouse events
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+
+            // Touch events
+            canvas.addEventListener('touchstart', handleTouch);
+            canvas.addEventListener('touchmove', handleTouch);
+            canvas.addEventListener('touchend', stopDrawing);
+
+            // Text input events
+            textInput.addEventListener('keydown', handleTextInput);
+            textInput.addEventListener('blur', hideTextInput);
+            canvas.addEventListener('click', handleCanvasClick);
+
+            window.addEventListener('resize', resizeCanvas);
+        }
+
+        function getCanvasPosition(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+            
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function startDrawing(e) {
+            if (currentMode !== 'draw') return;
+            
+            e.preventDefault();
+            isDrawing = true;
+            const pos = getCanvasPosition(e);
+            [lastX, lastY] = [pos.x, pos.y];
+            
+            // Draw initial dot
+            ctx.beginPath();
+            ctx.arc(lastX, lastY, currentSize/2, 0, Math.PI * 2);
+            ctx.fillStyle = currentColor;
+            ctx.fill();
+        }
+
+        function draw(e) {
+            if (!isDrawing || currentMode !== 'draw') return;
+            
+            e.preventDefault();
+            const pos = getCanvasPosition(e);
+            
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.strokeStyle = currentColor;
+            ctx.lineWidth = currentSize;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+            
+            [lastX, lastY] = [pos.x, pos.y];
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function handleTouch(e) {
+            if (currentMode !== 'draw') return;
+            
+            e.preventDefault();
+            if (e.type === 'touchstart') {
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent('mousedown', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                canvas.dispatchEvent(mouseEvent);
+            } else if (e.type === 'touchmove' && isDrawing) {
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent('mousemove', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                canvas.dispatchEvent(mouseEvent);
+            }
+        }
+
+        function setColor(color) {
+            currentColor = color;
+            document.querySelectorAll('.color-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        function setSize(size) {
+            currentSize = size;
+            document.querySelectorAll('.size-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            canvas.style.cursor = mode === 'text' ? 'text' : 'crosshair';
+            
+            if (mode !== 'text') {
+                hideTextInput();
+            }
+        }
+
+        function handleCanvasClick(e) {
+            if (currentMode === 'text') {
+                const pos = getCanvasPosition(e);
+                textInputPosition = { x: pos.x, y: pos.y };
+                showTextInput(pos.x, pos.y);
+            }
+        }
+
+        function showTextInput(x, y) {
+            textInput.style.left = x + 'px';
+            textInput.style.top = y + 'px';
+            textInput.style.display = 'block';
+            textInput.focus();
+            textInput.value = '';
+        }
+
+        function hideTextInput() {
+            textInput.style.display = 'none';
+        }
+
+        function handleTextInput(e) {
+            if (e.key === 'Enter') {
+                const text = textInput.value.trim();
+                if (text) {
+                    ctx.font = `bold ${currentSize * 3}px Arial`;
+                    ctx.fillStyle = currentColor;
+                    ctx.fillText(text, textInputPosition.x, textInputPosition.y);
+                }
+                hideTextInput();
+                e.preventDefault();
+            } else if (e.key === 'Escape') {
+                hideTextInput();
+            }
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const maxWidth = canvas.width * 0.8;
+                    const maxHeight = canvas.height * 0.8;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > maxWidth) {
+                        height = (maxWidth / width) * height;
+                        width = maxWidth;
+                    }
+                    if (height > maxHeight) {
+                        width = (maxHeight / height) * width;
+                        height = maxHeight;
+                    }
+                    
+                    const x = (canvas.width - width) / 2;
+                    const y = (canvas.height - height) / 2;
+                    
+                    ctx.drawImage(img, x, y, width, height);
+                    
+                    images.push({
+                        img: img,
+                        x: x,
+                        y: y,
+                        width: width,
+                        height: height
+                    });
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+            
+            event.target.value = '';
+        }
+
+        function clearWhiteboard() {
+            if (confirm('Are you sure you want to clear the entire whiteboard?')) {
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                images = [];
+            }
+        }
+    </script>
+</body>
+</html>
